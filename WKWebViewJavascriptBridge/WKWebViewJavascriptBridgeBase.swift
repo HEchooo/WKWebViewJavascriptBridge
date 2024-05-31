@@ -89,7 +89,13 @@ public class WKWebViewJavascriptBridgeBase: NSObject {
                     log("NoHandlerException, No handler for message from JS: \(message)")
                     continue
                 }
-                handler(message["data"] as? [String : Any], callback)
+                if let dictValue = message["data"] as? [String : Any] {
+                    handler(dictValue, callback)
+                } else if let strValue = message["data"] as? String, let dictValue = deserialize(str: strValue) {
+                    handler(dictValue, callback)
+                } else {
+                    handler(nil, callback)
+                }
             }
         }
     }
@@ -162,7 +168,17 @@ public class WKWebViewJavascriptBridgeBase: NSObject {
         }
         return result
     }
-    
+
+    private func deserialize(str: String) -> [String: Any]? {
+        guard let data = str.data(using: .utf8) else { return nil }
+        do {
+            return try JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any]
+        } catch let error {
+            log(error)
+            return [:]
+        }
+    }
+
     // MARK: - Log
     private func log<T>(_ message: T, file: String = #file, function: String = #function, line: Int = #line) {
         #if DEBUG
